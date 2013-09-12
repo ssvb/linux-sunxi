@@ -25,7 +25,7 @@ source "drivers/gpu/stub/Kconfig"
 
 source "drivers/gpu/ion/Kconfig"
 
-source "drivers/gpu/mali/Kconfig"
+source "drivers/gpu/mali_r3p2-01rel2/Kconfig"
 
 config VGASTATE
        tristate
@@ -290,7 +290,7 @@ config FB_SUNXI_RESERVED_MEM
 
 config FB_SUNXI_UMP
 	bool "Enable FB/UMP Integration"
-	depends on MALI && FB_SUNXI
+	depends on MALI400 && FB_SUNXI
 	default y
 
 config FB_SUNXI_LCD

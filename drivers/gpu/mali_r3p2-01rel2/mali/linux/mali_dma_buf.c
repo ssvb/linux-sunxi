@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
-#include <asm/spinlock.h>
+#include <linux/spinlock.h>
 
 #include "mali_ukk.h"
 #include "mali_osk.h"
