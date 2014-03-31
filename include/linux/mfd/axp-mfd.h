@@ -133,6 +133,9 @@ struct axp_mfd_chip {
 	struct blocking_notifier_head notifier_list;
 #ifdef CONFIG_AXP_HWMON
 	s16 temperature; /* range from -1447 to 2648 */
+	s16 acin_voltage; /* range from 0 to 6962 mV */
+	s16 acin_current; /* range from 0 to 2559 mA */
+	s32 acin_power;
 	unsigned long last_updated;     /* in jiffies */
 	char valid;	/* zero until following fields are valid */
 	struct device *hwmon_dev;
