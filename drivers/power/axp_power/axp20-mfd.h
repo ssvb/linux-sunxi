@@ -44,17 +44,60 @@ show_temp(struct device *dev, struct device_attribute *devattr, char *buf)
 	return sprintf(buf, "%d\n", data->temperature * 100);
 }
 
+static ssize_t
+show_acin_voltage(struct device *dev, struct device_attribute *devattr,
+		  char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct axp_mfd_chip *data = axp20_update_device(dev);
+	if (attr->index == 3)
+		return sprintf(buf, "ACIN voltage\n");
+	return sprintf(buf, "%d\n", data->acin_voltage);
+}
+
+static ssize_t
+show_acin_current(struct device *dev, struct device_attribute *devattr,
+		  char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct axp_mfd_chip *data = axp20_update_device(dev);
+	if (attr->index == 3)
+		return sprintf(buf, "ACIN current\n");
+	return sprintf(buf, "%d\n", data->acin_current);
+}
+
+static ssize_t
+show_acin_power(struct device *dev, struct device_attribute *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct axp_mfd_chip *data = axp20_update_device(dev);
+	if (attr->index == 3)
+		return sprintf(buf, "ACIN power\n");
+	return sprintf(buf, "%d\n", data->acin_power);
+}
 
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp1_min, S_IRUGO, show_temp, NULL, 2);
 static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_temp, NULL, 3);
+static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, show_acin_voltage, NULL, 0);
+static SENSOR_DEVICE_ATTR(in0_label, S_IRUGO, show_acin_voltage, NULL, 3);
+static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, show_acin_current, NULL, 0);
+static SENSOR_DEVICE_ATTR(curr1_label, S_IRUGO, show_acin_current, NULL, 3);
+static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, show_acin_power, NULL, 0);
+static SENSOR_DEVICE_ATTR(power1_label, S_IRUGO, show_acin_power, NULL, 3);
 
 static struct attribute *axp20_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	&sensor_dev_attr_temp1_label.dev_attr.attr,
+	&sensor_dev_attr_in0_input.dev_attr.attr,
+	&sensor_dev_attr_in0_label.dev_attr.attr,
+	&sensor_dev_attr_curr1_input.dev_attr.attr,
+	&sensor_dev_attr_curr1_label.dev_attr.attr,
+	&sensor_dev_attr_power1_input.dev_attr.attr,
+	&sensor_dev_attr_power1_label.dev_attr.attr,
 	NULL
 };
 
@@ -62,6 +105,25 @@ static const struct attribute_group axp20_group = {
 	.attrs = axp20_attributes,
 };
 
+static int axp_read_adc(struct device *dev, struct i2c_client *client, int reg)
+{
+	int err;
+	u8 high, low;
+
+	err = __axp_read(client, reg, &high);
+	if (err) {
+		dev_err(dev, "AXP Error while reading REG 0x%02X\n", reg);
+		high = 0;
+	}
+
+	err = __axp_read(client, reg + 1, &low);
+	if (err) {
+		dev_err(dev, "AXP Error while reading REG 0x%02X\n", reg + 1);
+		low = 0;
+	}
+
+	return (high << 4) + (low & 0x0F);
+}
 
 /*
  *  * function that update the status of the chips (temperature)
@@ -70,29 +132,29 @@ static struct axp_mfd_chip *axp20_update_device(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct axp_mfd_chip *data = i2c_get_clientdata(client);
-	int err;
-	u8 high, low;
+	int adc_value;
 
 	mutex_lock(&data->lock);
 
-	if (time_after(jiffies, data->last_updated + HZ * 2)
+	if (time_after(jiffies, data->last_updated + HZ / 50)
 		|| !data->valid) {
-		dev_dbg(&client->dev, "Updating axp20 data\n");
+
+		/* AXP202 datasheet page 25, 0x000 means 0A,
+		 * 0xfff means 2.5594A, 4096 steps of 0.625mA */
+		adc_value = axp_read_adc(dev, client, 0x58);
+		data->acin_current = adc_value * 40960 >> 16;
+
+		/* AXP202 datasheet page 25, 0x000 means 0V,
+		 * 0xfff means 6.9615V, 4096 steps of 1.7mV */
+		adc_value = axp_read_adc(dev, client, 0x56);
+		data->acin_voltage = adc_value * 111411 >> 16;
+
 		/* AXP202 datasheet page 25, 0x000 means -144.7,
 		 * 0xfff means 264.8, 4096 steps of 0.1 degress */
-		err = __axp_read(client, 0x5E, &high);
-		if (err) {
-			dev_err(dev, "AXP Error while reading high\n");
-			high = 0;
-		}
+		data->temperature = -1447 + axp_read_adc(dev, client, 0x5E);
 
-		err = __axp_read(client, 0x5F, &low);
-		if (err) {
-			dev_err(dev, "AXP Error while reading low\n");
-			low = 0;
-		}
+		data->acin_power = data->acin_voltage * data->acin_current;
 
-		data->temperature = -1447 + ((high << 4) + (low & 0x0F));
 		data->last_updated = jiffies;
 		data->valid = 1;
 	}
