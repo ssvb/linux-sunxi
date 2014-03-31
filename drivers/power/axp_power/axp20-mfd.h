@@ -39,6 +39,8 @@ show_temp(struct device *dev, struct device_attribute *devattr, char *buf)
 		return sprintf(buf, "264800\n");
 	if (attr->index == 2)
 		return sprintf(buf, "-144700\n");
+	if (attr->index == 3)
+		return sprintf(buf, "AXP20X temperature\n");
 	return sprintf(buf, "%d\n", data->temperature * 100);
 }
 
@@ -46,11 +48,13 @@ show_temp(struct device *dev, struct device_attribute *devattr, char *buf)
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp1_min, S_IRUGO, show_temp, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_temp, NULL, 3);
 
 static struct attribute *axp20_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_label.dev_attr.attr,
 	NULL
 };
 
