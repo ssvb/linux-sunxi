@@ -88,7 +88,7 @@ static struct axp_mfd_chip *axp20_update_device(struct device *dev)
 			low = 0;
 		}
 
-		data->temperature = -1447 + ((high << 4) + (low && 0x0F));
+		data->temperature = -1447 + ((high << 4) + (low & 0x0F));
 		data->last_updated = jiffies;
 		data->valid = 1;
 	}
