@@ -136,6 +136,9 @@ struct axp_mfd_chip {
 	s16 acin_voltage; /* range from 0 to 6962 mV */
 	s16 acin_current; /* range from 0 to 2559 mA */
 	s32 acin_power;
+	s32 acin_avg_voltage;
+	s32 acin_avg_current;
+	s32 acin_avg_power;
 	unsigned long last_updated;     /* in jiffies */
 	char valid;	/* zero until following fields are valid */
 	struct device *hwmon_dev;

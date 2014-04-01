@@ -365,6 +365,10 @@ static int __devexit axp_mfd_remove(struct i2c_client *client)
 
 #ifdef CONFIG_AXP_HWMON
 	if (chip->itm_enabled == 1) {
+		cancel_delayed_work(&axp_hwmon_work);
+		flush_workqueue(wq);
+		destroy_workqueue(wq);
+
 		hwmon_device_unregister(chip->hwmon_dev);
 		sysfs_remove_group(&client->dev.kobj, &axp20_group);
 	}
