@@ -28,13 +28,14 @@
 #include <linux/hwmon.h>
 #include <linux/err.h>
 
-static struct axp_mfd_chip *axp20_update_device(struct device *dev);
+static struct
+axp_mfd_chip *axp20_update_device(struct device *dev, int from_wq);
 
 static ssize_t
 show_temp(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct axp_mfd_chip *data = axp20_update_device(dev);
+	struct axp_mfd_chip *data = axp20_update_device(dev, 0);
 	if (attr->index == 1)
 		return sprintf(buf, "264800\n");
 	if (attr->index == 2)
@@ -49,9 +50,11 @@ show_acin_voltage(struct device *dev, struct device_attribute *devattr,
 		  char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct axp_mfd_chip *data = axp20_update_device(dev);
+	struct axp_mfd_chip *data = axp20_update_device(dev, 0);
 	if (attr->index == 3)
 		return sprintf(buf, "ACIN voltage\n");
+	if (attr->index == 4)
+		return sprintf(buf, "%d\n", data->acin_avg_voltage / 64);
 	return sprintf(buf, "%d\n", data->acin_voltage);
 }
 
@@ -60,9 +63,11 @@ show_acin_current(struct device *dev, struct device_attribute *devattr,
 		  char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct axp_mfd_chip *data = axp20_update_device(dev);
+	struct axp_mfd_chip *data = axp20_update_device(dev, 0);
 	if (attr->index == 3)
 		return sprintf(buf, "ACIN current\n");
+	if (attr->index == 4)
+		return sprintf(buf, "%d\n", data->acin_avg_current / 64);
 	return sprintf(buf, "%d\n", data->acin_current);
 }
 
@@ -70,9 +75,11 @@ static ssize_t
 show_acin_power(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct axp_mfd_chip *data = axp20_update_device(dev);
+	struct axp_mfd_chip *data = axp20_update_device(dev, 0);
 	if (attr->index == 3)
 		return sprintf(buf, "ACIN power\n");
+	if (attr->index == 4)
+		return sprintf(buf, "%d\n", data->acin_avg_power / 64);
 	return sprintf(buf, "%d\n", data->acin_power);
 }
 
@@ -82,10 +89,13 @@ static SENSOR_DEVICE_ATTR(temp1_min, S_IRUGO, show_temp, NULL, 2);
 static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_temp, NULL, 3);
 static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, show_acin_voltage, NULL, 0);
 static SENSOR_DEVICE_ATTR(in0_label, S_IRUGO, show_acin_voltage, NULL, 3);
+static SENSOR_DEVICE_ATTR(in0_average, S_IRUGO, show_acin_voltage, NULL, 4);
 static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, show_acin_current, NULL, 0);
 static SENSOR_DEVICE_ATTR(curr1_label, S_IRUGO, show_acin_current, NULL, 3);
+static SENSOR_DEVICE_ATTR(curr1_average, S_IRUGO, show_acin_current, NULL, 4);
 static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, show_acin_power, NULL, 0);
 static SENSOR_DEVICE_ATTR(power1_label, S_IRUGO, show_acin_power, NULL, 3);
+static SENSOR_DEVICE_ATTR(power1_average, S_IRUGO, show_acin_power, NULL, 4);
 
 static struct attribute *axp20_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -94,10 +104,13 @@ static struct attribute *axp20_attributes[] = {
 	&sensor_dev_attr_temp1_label.dev_attr.attr,
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in0_label.dev_attr.attr,
+	&sensor_dev_attr_in0_average.dev_attr.attr,
 	&sensor_dev_attr_curr1_input.dev_attr.attr,
 	&sensor_dev_attr_curr1_label.dev_attr.attr,
+	&sensor_dev_attr_curr1_average.dev_attr.attr,
 	&sensor_dev_attr_power1_input.dev_attr.attr,
 	&sensor_dev_attr_power1_label.dev_attr.attr,
+	&sensor_dev_attr_power1_average.dev_attr.attr,
 	NULL
 };
 
@@ -125,10 +138,23 @@ static int axp_read_adc(struct device *dev, struct i2c_client *client, int reg)
 	return (high << 4) + (low & 0x0F);
 }
 
+static int axp_hwmon_wq_counter;
+
+static void axp_hwmon_work_handler(struct work_struct *w);
+static struct workqueue_struct *wq;
+static DECLARE_DELAYED_WORK(axp_hwmon_work, axp_hwmon_work_handler);
+
+static struct device *wq_dev_arg;
+
+static void axp_hwmon_work_handler(struct work_struct *w)
+{
+	axp20_update_device(wq_dev_arg, 1);
+}
+
 /*
  *  * function that update the status of the chips (temperature)
  *   */
-static struct axp_mfd_chip *axp20_update_device(struct device *dev)
+static struct axp_mfd_chip *axp20_update_device(struct device *dev, int from_wq)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct axp_mfd_chip *data = i2c_get_clientdata(client);
@@ -155,8 +181,36 @@ static struct axp_mfd_chip *axp20_update_device(struct device *dev)
 
 		data->acin_power = data->acin_voltage * data->acin_current;
 
+		if (!axp_hwmon_wq_counter || !data->valid) {
+			data->acin_avg_power = 0;
+			data->acin_avg_voltage = 0;
+			data->acin_avg_current = 0;
+		} else {
+			/* Calculate running moving average for N=64 */
+			data->acin_avg_power -= data->acin_avg_power / 64;
+			data->acin_avg_power += data->acin_voltage *
+						data->acin_current;
+
+			data->acin_avg_voltage -= data->acin_avg_voltage / 64;
+			data->acin_avg_voltage += data->acin_voltage;
+
+			data->acin_avg_current -= data->acin_avg_current / 64;
+			data->acin_avg_current += data->acin_current;
+		}
+
 		data->last_updated = jiffies;
 		data->valid = 1;
+	}
+
+	if (from_wq) {
+		if (axp_hwmon_wq_counter > 0) {
+			queue_delayed_work(wq, &axp_hwmon_work, HZ / 25);
+			axp_hwmon_wq_counter--;
+		}
+	} else {
+		/* Keep running for at least 1 minute from now */
+		axp_hwmon_wq_counter = 61 * 25;
+		queue_delayed_work(wq, &axp_hwmon_work, HZ / 25);
 	}
 
 	mutex_unlock(&data->lock);
@@ -217,6 +271,8 @@ static int __devinit axp20_init_chip(struct axp_mfd_chip *chip)
 			err = PTR_ERR(chip->hwmon_dev);
 			goto exit_remove_files;
 		}
+		wq_dev_arg = chip->dev;
+		wq = create_singlethread_workqueue("axp_hwmon_wq");
 	} else {
 		dev_info(chip->dev, "AXP internal temperature monitoring disabled\n");
 		/* TODO enable it ?*/
