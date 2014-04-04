@@ -135,10 +135,14 @@ struct axp_mfd_chip {
 	s16 temperature; /* range from -1447 to 2648 */
 	s16 acin_voltage; /* range from 0 to 6962 mV */
 	s16 acin_current; /* range from 0 to 2559 mA */
-	s32 acin_power;
+	s16 vbus_voltage; /* range from 0 to 6962 mV */
+	s16 vbus_current; /* range from 0 to 1536 mA */
 	s32 acin_avg_voltage;
 	s32 acin_avg_current;
-	s32 acin_avg_power;
+	s32 vbus_avg_voltage;
+	s32 vbus_avg_current;
+	s32 ext_power;
+	s32 ext_avg_power;
 	unsigned long last_updated;     /* in jiffies */
 	char valid;	/* zero until following fields are valid */
 	struct device *hwmon_dev;

@@ -72,15 +72,41 @@ show_acin_current(struct device *dev, struct device_attribute *devattr,
 }
 
 static ssize_t
-show_acin_power(struct device *dev, struct device_attribute *devattr, char *buf)
+show_vbus_voltage(struct device *dev, struct device_attribute *devattr,
+		  char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct axp_mfd_chip *data = axp20_update_device(dev, 0);
 	if (attr->index == 3)
-		return sprintf(buf, "ACIN power\n");
+		return sprintf(buf, "VBUS voltage\n");
 	if (attr->index == 4)
-		return sprintf(buf, "%d\n", data->acin_avg_power / 64);
-	return sprintf(buf, "%d\n", data->acin_power);
+		return sprintf(buf, "%d\n", data->vbus_avg_voltage / 64);
+	return sprintf(buf, "%d\n", data->vbus_voltage);
+}
+
+static ssize_t
+show_vbus_current(struct device *dev, struct device_attribute *devattr,
+		  char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct axp_mfd_chip *data = axp20_update_device(dev, 0);
+	if (attr->index == 3)
+		return sprintf(buf, "VBUS current\n");
+	if (attr->index == 4)
+		return sprintf(buf, "%d\n", data->vbus_avg_current / 64);
+	return sprintf(buf, "%d\n", data->vbus_current);
+}
+
+static ssize_t
+show_ext_power(struct device *dev, struct device_attribute *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct axp_mfd_chip *data = axp20_update_device(dev, 0);
+	if (attr->index == 3)
+		return sprintf(buf, "ACIN+VBUS power\n");
+	if (attr->index == 4)
+		return sprintf(buf, "%d\n", data->ext_avg_power / 64);
+	return sprintf(buf, "%d\n", data->ext_power);
 }
 
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
@@ -93,9 +119,15 @@ static SENSOR_DEVICE_ATTR(in0_average, S_IRUGO, show_acin_voltage, NULL, 4);
 static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, show_acin_current, NULL, 0);
 static SENSOR_DEVICE_ATTR(curr1_label, S_IRUGO, show_acin_current, NULL, 3);
 static SENSOR_DEVICE_ATTR(curr1_average, S_IRUGO, show_acin_current, NULL, 4);
-static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, show_acin_power, NULL, 0);
-static SENSOR_DEVICE_ATTR(power1_label, S_IRUGO, show_acin_power, NULL, 3);
-static SENSOR_DEVICE_ATTR(power1_average, S_IRUGO, show_acin_power, NULL, 4);
+static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, show_vbus_voltage, NULL, 0);
+static SENSOR_DEVICE_ATTR(in1_label, S_IRUGO, show_vbus_voltage, NULL, 3);
+static SENSOR_DEVICE_ATTR(in1_average, S_IRUGO, show_vbus_voltage, NULL, 4);
+static SENSOR_DEVICE_ATTR(curr2_input, S_IRUGO, show_vbus_current, NULL, 0);
+static SENSOR_DEVICE_ATTR(curr2_label, S_IRUGO, show_vbus_current, NULL, 3);
+static SENSOR_DEVICE_ATTR(curr2_average, S_IRUGO, show_vbus_current, NULL, 4);
+static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, show_ext_power, NULL, 0);
+static SENSOR_DEVICE_ATTR(power1_label, S_IRUGO, show_ext_power, NULL, 3);
+static SENSOR_DEVICE_ATTR(power1_average, S_IRUGO, show_ext_power, NULL, 4);
 
 static struct attribute *axp20_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -108,6 +140,12 @@ static struct attribute *axp20_attributes[] = {
 	&sensor_dev_attr_curr1_input.dev_attr.attr,
 	&sensor_dev_attr_curr1_label.dev_attr.attr,
 	&sensor_dev_attr_curr1_average.dev_attr.attr,
+	&sensor_dev_attr_in1_input.dev_attr.attr,
+	&sensor_dev_attr_in1_label.dev_attr.attr,
+	&sensor_dev_attr_in1_average.dev_attr.attr,
+	&sensor_dev_attr_curr2_input.dev_attr.attr,
+	&sensor_dev_attr_curr2_label.dev_attr.attr,
+	&sensor_dev_attr_curr2_average.dev_attr.attr,
 	&sensor_dev_attr_power1_input.dev_attr.attr,
 	&sensor_dev_attr_power1_label.dev_attr.attr,
 	&sensor_dev_attr_power1_average.dev_attr.attr,
@@ -170,32 +208,53 @@ static struct axp_mfd_chip *axp20_update_device(struct device *dev, int from_wq)
 		adc_value = axp_read_adc(dev, client, 0x58);
 		data->acin_current = adc_value * 40960 >> 16;
 
+		/* AXP202 datasheet page 25, 0x000 means 0A,
+		 * 0xfff means 1.5356A, 4096 steps of 0.375mA */
+		adc_value = axp_read_adc(dev, client, 0x5C);
+		data->vbus_current = adc_value * 24576 >> 16;
+
 		/* AXP202 datasheet page 25, 0x000 means 0V,
 		 * 0xfff means 6.9615V, 4096 steps of 1.7mV */
 		adc_value = axp_read_adc(dev, client, 0x56);
 		data->acin_voltage = adc_value * 111411 >> 16;
 
+		/* AXP202 datasheet page 25, 0x000 means 0V,
+		 * 0xfff means 6.9615V, 4096 steps of 1.7mV */
+		adc_value = axp_read_adc(dev, client, 0x5A);
+		data->vbus_voltage = adc_value * 111411 >> 16;
+
 		/* AXP202 datasheet page 25, 0x000 means -144.7,
 		 * 0xfff means 264.8, 4096 steps of 0.1 degress */
 		data->temperature = -1447 + axp_read_adc(dev, client, 0x5E);
 
-		data->acin_power = data->acin_voltage * data->acin_current;
+		data->ext_power = data->acin_voltage * data->acin_current +
+				  data->vbus_voltage * data->vbus_current;
 
 		if (!axp_hwmon_wq_counter || !data->valid) {
-			data->acin_avg_power = 0;
+			data->ext_avg_power = 0;
 			data->acin_avg_voltage = 0;
 			data->acin_avg_current = 0;
+			data->vbus_avg_voltage = 0;
+			data->vbus_avg_current = 0;
 		} else {
 			/* Calculate running moving average for N=64 */
-			data->acin_avg_power -= data->acin_avg_power / 64;
-			data->acin_avg_power += data->acin_voltage *
-						data->acin_current;
+			data->ext_avg_power -= data->ext_avg_power / 64;
+			data->ext_avg_power += data->acin_voltage *
+					       data->acin_current +
+					       data->vbus_voltage *
+					       data->vbus_current;
 
 			data->acin_avg_voltage -= data->acin_avg_voltage / 64;
 			data->acin_avg_voltage += data->acin_voltage;
 
 			data->acin_avg_current -= data->acin_avg_current / 64;
 			data->acin_avg_current += data->acin_current;
+
+			data->vbus_avg_voltage -= data->vbus_avg_voltage / 64;
+			data->vbus_avg_voltage += data->vbus_voltage;
+
+			data->vbus_avg_current -= data->vbus_avg_current / 64;
+			data->vbus_avg_current += data->vbus_current;
 		}
 
 		data->last_updated = jiffies;
