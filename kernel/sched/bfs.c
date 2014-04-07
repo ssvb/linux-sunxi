@@ -2591,6 +2591,16 @@ void account_idle_time(cputime_t cputime)
 {
 }
 
+#ifdef CONFIG_NO_HZ
+void calc_load_enter_idle(void)
+{
+}
+
+void calc_load_exit_idle(void)
+{
+}
+#endif /* CONFIG_NO_HZ */
+
 /*
  * Account guest cpu time to a process.
  * @p: the process that the cpu time gets accounted to
