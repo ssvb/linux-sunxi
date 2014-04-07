@@ -123,6 +123,8 @@ extern struct group_info init_groups;
 
 extern struct cred init_cred;
 
+#ifndef CONFIG_SCHED_BFS
+
 extern struct task_group root_task_group;
 
 #ifdef CONFIG_CGROUP_SCHED
@@ -132,6 +134,8 @@ extern struct task_group root_task_group;
 # define INIT_CGROUP_SCHED(tsk)
 #endif
 
+#endif
+	
 #ifdef CONFIG_PERF_EVENTS
 # define INIT_PERF_EVENTS(tsk)						\
 	.perf_event_mutex = 						\
