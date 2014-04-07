@@ -2599,6 +2599,10 @@ void calc_load_enter_idle(void)
 void calc_load_exit_idle(void)
 {
 }
+
+void update_cpu_load_nohz(void)
+{
+}
 #endif /* CONFIG_NO_HZ */
 
 /*
