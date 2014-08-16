@@ -1058,7 +1058,18 @@ static struct platform_driver sun7i_a20_pinctrl_driver = {
 		.of_match_table	= sun7i_a20_pinctrl_match,
 	},
 };
-module_platform_driver(sun7i_a20_pinctrl_driver);
+
+static int __init sun7i_a20_pinctrl_init(void)
+{
+	return platform_driver_register(&sun7i_a20_pinctrl_driver);
+}
+arch_initcall(sun7i_a20_pinctrl_init);
+
+static void __exit sun7i_a20_pinctrl_exit(void)
+{
+	platform_driver_unregister(&sun7i_a20_pinctrl_driver);
+}
+module_exit(sun7i_a20_pinctrl_exit);
 
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
 MODULE_DESCRIPTION("Allwinner A20 pinctrl driver");

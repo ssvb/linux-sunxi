@@ -683,7 +683,18 @@ static struct platform_driver sun5i_a10s_pinctrl_driver = {
 		.of_match_table	= sun5i_a10s_pinctrl_match,
 	},
 };
-module_platform_driver(sun5i_a10s_pinctrl_driver);
+
+static int __init sun5i_a10s_pinctrl_init(void)
+{
+	return platform_driver_register(&sun5i_a10s_pinctrl_driver);
+}
+arch_initcall(sun5i_a10s_pinctrl_init);
+
+static void __exit sun5i_a10s_pinctrl_exit(void)
+{
+	platform_driver_unregister(&sun5i_a10s_pinctrl_driver);
+}
+module_exit(sun5i_a10s_pinctrl_exit);
 
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
 MODULE_DESCRIPTION("Allwinner A10s pinctrl driver");

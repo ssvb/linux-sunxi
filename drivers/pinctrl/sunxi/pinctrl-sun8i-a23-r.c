@@ -132,7 +132,18 @@ static struct platform_driver sun8i_a23_r_pinctrl_driver = {
 		.of_match_table	= sun8i_a23_r_pinctrl_match,
 	},
 };
-module_platform_driver(sun8i_a23_r_pinctrl_driver);
+
+static int __init sun8i_a23_r_pinctrl_init(void)
+{
+	return platform_driver_register(&sun8i_a23_r_pinctrl_driver);
+}
+arch_initcall(sun8i_a23_r_pinctrl_init);
+
+static void __exit sun8i_a23_r_pinctrl_exit(void)
+{
+	platform_driver_unregister(&sun8i_a23_r_pinctrl_driver);
+}
+module_exit(sun8i_a23_r_pinctrl_exit);
 
 MODULE_AUTHOR("Chen-Yu Tsai <wens@csie.org>");
 MODULE_AUTHOR("Boris Brezillon <boris.brezillon@free-electrons.com");
