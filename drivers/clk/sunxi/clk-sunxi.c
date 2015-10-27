@@ -704,21 +704,12 @@ static const struct factors_data sun4i_pll5_data __initconst = {
 	.enable = 31,
 	.table = &sun4i_pll5_config,
 	.getter = sun4i_get_pll5_factors,
-	.name = "pll5",
-};
-
-static const struct factors_data sun4i_pll6_data __initconst = {
-	.enable = 31,
-	.table = &sun4i_pll5_config,
-	.getter = sun4i_get_pll5_factors,
-	.name = "pll6",
 };
 
 static const struct factors_data sun6i_a31_pll6_data __initconst = {
 	.enable = 31,
 	.table = &sun6i_a31_pll6_config,
 	.getter = sun6i_a31_get_pll6_factors,
-	.name = "pll6x2",
 };
 
 static const struct factors_data sun5i_a13_ahb_data __initconst = {
@@ -902,6 +893,7 @@ struct gates_data {
 
 #define SUNXI_DIVS_MAX_QTY	4
 #define SUNXI_DIVISOR_WIDTH	2
+#define SUNXI_DIVS_BASE_NAME_MAX_LEN	8
 
 struct divs_data {
 	const struct factors_data *factors; /* data for the factor clock */
@@ -941,7 +933,7 @@ static const struct divs_data pll5_divs_data __initconst = {
 };
 
 static const struct divs_data pll6_divs_data __initconst = {
-	.factors = &sun4i_pll6_data,
+	.factors = &sun4i_pll5_data,
 	.ndivs = 4,
 	.div = {
 		{ .shift = 0, .table = pll6_sata_tbl, .gate = 14 }, /* M, SATA */
@@ -983,6 +975,8 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 	struct clk_gate *gate = NULL;
 	struct clk_fixed_factor *fix_factor;
 	struct clk_divider *divider;
+	struct factors_data factors = *data->factors;
+	char base_name[SUNXI_DIVS_BASE_NAME_MAX_LEN];
 	void __iomem *reg;
 	int ndivs = SUNXI_DIVS_MAX_QTY, i = 0;
 	int flags, clkflags;
@@ -991,8 +985,30 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 	if (data->ndivs)
 		ndivs = data->ndivs;
 
+	/* Try to find a name for base factor clock */
+	for (i = 0; i < ndivs; i++) {
+		if (data->div[i].self) {
+			of_property_read_string_index(node, "clock-output-names",
+						      i, &factors.name);
+			break;
+		}
+	}
+	/* If we don't have a .self clk use the first output-name up to '_' */
+	if (factors.name == NULL) {
+		of_property_read_string_index(node, "clock-output-names",
+						      0, &clk_name);
+
+		for (i = 0; i < SUNXI_DIVS_BASE_NAME_MAX_LEN - 1 &&
+						clk_name[i] != '_' &&
+						clk_name[i] != '\0'; i++)
+			base_name[i] = clk_name[i];
+
+		base_name[i] = '\0';
+		factors.name = base_name;
+	}
+
 	/* Set up factor clock that we will be dividing */
-	pclk = sunxi_factors_clk_setup(node, data->factors);
+	pclk = sunxi_factors_clk_setup(node, &factors);
 	parent = __clk_get_name(pclk);
 
 	reg = of_iomap(node, 0);
