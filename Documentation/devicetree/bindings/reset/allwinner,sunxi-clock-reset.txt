@@ -8,6 +8,7 @@ Required properties:
 - compatible: Should be one of the following:
   "allwinner,sun6i-a31-ahb1-reset"
   "allwinner,sun6i-a31-clock-reset"
+  "allwinner,sun8i-h3-bus-reset"
 - reg: should be register base and length as documented in the
   datasheet
 - #reset-cells: 1, see below
