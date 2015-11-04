@@ -73,7 +73,7 @@ struct _mali_osk_lock_t_struct
 	); /* MALI_DEBUG_CODE */
 };
 
-_mali_osk_lock_t *_mali_osk_lock_init( _mali_osk_lock_flags_t flags, u32 initial, u32 order )
+__weak _mali_osk_lock_t *_mali_osk_lock_init( _mali_osk_lock_flags_t flags, u32 initial, u32 order )
 {
     _mali_osk_lock_t *lock = NULL;
 
@@ -148,23 +148,23 @@ _mali_osk_lock_t *_mali_osk_lock_init( _mali_osk_lock_flags_t flags, u32 initial
 }
 
 #ifdef DEBUG
-u32 _mali_osk_lock_get_owner( _mali_osk_lock_t *lock )
+__weak u32 _mali_osk_lock_get_owner( _mali_osk_lock_t *lock )
 {
 	return lock->owner;
 }
 
-u32 _mali_osk_lock_get_number_owners( _mali_osk_lock_t *lock )
+__weak u32 _mali_osk_lock_get_number_owners( _mali_osk_lock_t *lock )
 {
 	return lock->nOwners;
 }
 
-u32 _mali_osk_lock_get_mode( _mali_osk_lock_t *lock )
+__weak u32 _mali_osk_lock_get_mode( _mali_osk_lock_t *lock )
 {
 	return lock->mode;
 }
 #endif /* DEBUG */
 
-_mali_osk_errcode_t _mali_osk_lock_wait( _mali_osk_lock_t *lock, _mali_osk_lock_mode_t mode)
+__weak _mali_osk_errcode_t _mali_osk_lock_wait( _mali_osk_lock_t *lock, _mali_osk_lock_mode_t mode)
 {
     _mali_osk_errcode_t err = _MALI_OSK_ERR_OK;
 
@@ -247,7 +247,7 @@ _mali_osk_errcode_t _mali_osk_lock_wait( _mali_osk_lock_t *lock, _mali_osk_lock_
     return err;
 }
 
-void _mali_osk_lock_signal( _mali_osk_lock_t *lock, _mali_osk_lock_mode_t mode )
+__weak void _mali_osk_lock_signal( _mali_osk_lock_t *lock, _mali_osk_lock_mode_t mode )
 {
 	/* Parameter validation */
 	MALI_DEBUG_ASSERT_POINTER( lock );
@@ -326,7 +326,7 @@ void _mali_osk_lock_signal( _mali_osk_lock_t *lock, _mali_osk_lock_mode_t mode )
 	}
 }
 
-void _mali_osk_lock_term( _mali_osk_lock_t *lock )
+__weak void _mali_osk_lock_term( _mali_osk_lock_t *lock )
 {
 	/* Parameter validation  */
 	MALI_DEBUG_ASSERT_POINTER( lock );

@@ -1,6 +1,6 @@
 config MALI
 	tristate "ARM Mali GPU modules"
-	depends on ARM && m
+	depends on ARM
         select UMP
         select MALI400
 	default n

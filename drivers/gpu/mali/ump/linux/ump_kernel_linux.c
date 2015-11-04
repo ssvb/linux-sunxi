@@ -377,7 +377,7 @@ static int ump_file_ioctl(struct inode *inode, struct file *filp, unsigned int c
 	return err;
 }
 
-int map_errcode( _mali_osk_errcode_t err )
+__weak int map_errcode( _mali_osk_errcode_t err )
 {
     switch(err)
     {

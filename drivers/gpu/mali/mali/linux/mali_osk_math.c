@@ -16,7 +16,7 @@
 #include "mali_osk.h"
 #include <linux/bitops.h>
 
-u32 inline _mali_osk_clz( u32 input )
+__weak u32 _mali_osk_clz( u32 input )
 {
 	return 32-fls(input);
 }
