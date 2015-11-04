@@ -275,7 +275,6 @@ config FB_GRVGA
 config FB_SUNXI
         tristate "DISP Driver Support(sunxi)"
         depends on FB && (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)
-	select FB_SUNXI_RESERVED_MEM if MALI
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -286,7 +285,7 @@ config FB_SUNXI
 config FB_SUNXI_RESERVED_MEM
 	bool "Reserve memory block for sunxi/fb"
 	depends on FB_SUNXI
-	default y
+	default !CMA
 
 config FB_SUNXI_UMP
 	bool "Enable FB/UMP Integration"

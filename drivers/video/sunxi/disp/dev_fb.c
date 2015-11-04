@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/console.h>
+#include <linux/dma-mapping.h>
 
 #ifdef CONFIG_FB_SUNXI_UMP
 #include <ump/ump_kernel_interface.h>
@@ -463,8 +464,35 @@ fb_draw_gray_pictures(__u32 base, __u32 width, __u32 height,
 }
 #endif /* UNUSED */
 
+#ifdef CONFIG_CMA
+static int Fb_map_cma_video_memory(__u32 fb_id, struct fb_info *info)
+{
+	resource_size_t pa;
+	g_fbi.malloc_screen_base[fb_id] = dma_alloc_coherent(NULL, info->fix.smem_len, &pa,
+							GFP_KERNEL | GFP_DMA);
+	if (g_fbi.malloc_screen_base[fb_id] == NULL)
+		return -ENOMEM;
+	info->fix.smem_start = pa;
+	info->screen_base = g_fbi.malloc_screen_base[fb_id];
+	memset(info->screen_base, 0, info->fix.smem_len);
+	return 0;
+}
+
+static void Fb_unmap_cma_video_memory(__u32 fb_id, struct fb_info *info)
+{
+	if (g_fbi.malloc_screen_base[fb_id] != NULL) {
+		dma_free_coherent(NULL, info->fix.smem_len,
+				  g_fbi.malloc_screen_base[fb_id], info->fix.smem_start);
+		g_fbi.malloc_screen_base[fb_id] = NULL;
+	}
+}
+#endif
+
 static int __init Fb_map_video_memory(__u32 fb_id, struct fb_info *info)
 {
+#ifdef CONFIG_CMA
+	return Fb_map_cma_video_memory(fb_id, info);
+#else
 	unsigned map_size = PAGE_ALIGN(info->fix.smem_len);
 	struct page *page;
 
@@ -507,10 +535,14 @@ use_reserved_mem:
 
 	return 0;
 #endif
+#endif
 }
 
 static inline void Fb_unmap_video_memory(__u32 fb_id, struct fb_info *info)
 {
+#ifdef CONFIG_CMA
+	Fb_unmap_cma_video_memory(fb_id, info);
+#else
 	unsigned map_size = PAGE_ALIGN(info->fix.smem_len);
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 	if (fb_size) {
@@ -527,6 +559,7 @@ static inline void Fb_unmap_video_memory(__u32 fb_id, struct fb_info *info)
 #endif
 		free_pages((unsigned long)info->screen_base,
 			   get_order(map_size));
+#endif
 }
 
 /*
