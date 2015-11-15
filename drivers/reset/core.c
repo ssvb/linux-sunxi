@@ -152,16 +152,31 @@ EXPORT_SYMBOL_GPL(reset_control_status);
 struct reset_control *of_reset_control_get(struct device_node *node,
 					   const char *id)
 {
+	int index = 0;
+
+	if (id)
+		index = of_property_match_string(node, "reset-names", id);
+
+	return of_reset_control_get_by_index(node, index);
+}
+
+/**
+ * of_reset_control_get_by_index - Lookup and obtain a reference to a
+ * reset controller.
+ * @node: device to be reset by the controller
+ * @index: reset line index
+ *
+ * Returns a struct reset_control or IS_ERR() condition containing errno.
+ */
+struct reset_control *of_reset_control_get_by_index(struct device_node *node,
+						    int index)
+{
 	struct reset_control *rstc = ERR_PTR(-EPROBE_DEFER);
 	struct reset_controller_dev *r, *rcdev;
 	struct of_phandle_args args;
-	int index = 0;
 	int rstc_id;
 	int ret;
 
-	if (id)
-		index = of_property_match_string(node,
-						 "reset-names", id);
 	ret = of_parse_phandle_with_args(node, "resets", "#reset-cells",
 					 index, &args);
 	if (ret)
