@@ -1483,6 +1483,12 @@ static struct fb_ops dispfb_ops = {
 	.fb_cursor = Fb_cursor,
 };
 
+/* For Mali addresses validation */
+extern unsigned long fb0_start;
+extern unsigned long fb0_size;
+extern unsigned long fb1_start;
+extern unsigned long fb1_size;
+
 __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t * fb_para)
 {
 	struct fb_info *info = NULL;
@@ -1509,6 +1515,14 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t * fb_para)
 	info->fix.smem_len = PAGE_ALIGN(
 		info->fix.line_length * fb_para->height * fb_para->buffer_num);
 	Fb_map_video_memory(fb_id, info);
+
+	if (fb_id == 0) {
+		fb0_start = info->fix.smem_start;
+		fb0_size  = info->fix.smem_len;
+	} else if (fb_id == 1) {
+		fb1_start = info->fix.smem_start;
+		fb1_size  = info->fix.smem_len;
+	}
 
 	for (sel = 0; sel < 2; sel++) {
 		if (((sel == 0) && (fb_para->fb_mode != FB_MODE_SCREEN1)) ||
@@ -1629,6 +1643,14 @@ __s32 Display_Fb_Release(__u32 fb_id)
 
 	fb_dealloc_cmap(&info->cmap);
 	Fb_unmap_video_memory(fb_id, info);
+
+	if (fb_id == 0) {
+		fb0_start = 0;
+		fb0_size  = 0;
+	} else if (fb_id == 1) {
+		fb1_start = 0;
+		fb1_size  = 0;
+	}
 
 	return DIS_SUCCESS;
 }

@@ -24,13 +24,6 @@
 #include <plat/sys_config.h>
 #include <plat/memory.h>
 
-#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
-extern unsigned long fb_start;
-extern unsigned long fb_size;
-static int fb_validation_range_added;
-#endif
-
-
 int mali_clk_div = 3;
 module_param(mali_clk_div, int, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(mali_clk_div, "Clock divisor for mali");
@@ -44,24 +37,6 @@ _mali_osk_errcode_t mali_platform_init(void)
 	unsigned long rate;
 	int clk_div;
 	int mali_used = 0;
-
-#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
-	/* mali_platform_init() may be called multiple times,
-	   but we only need to set the validation range once */
-	if (!fb_validation_range_added) {
-		_mali_osk_resource_t fb_resource = {
-			.type = MEM_VALIDATION,
-			.description = "Framebuffer",
-			.base = fb_start,
-			.size = fb_size,
-			.flags = 0
-		};
-		mali_mem_validation_add_range(&fb_resource);
-		MALI_PRINT(("permit MALI_IOC_MEM_MAP_EXT ioctl for framebuffer"
-			    " (paddr=0x%08X, size=%d)\n", fb_start, fb_size));
-		fb_validation_range_added = 1;
-	}
-#endif
 
 	//get mali ahb clock
 	h_ahb_mali = clk_get(NULL, "ahb_mali");

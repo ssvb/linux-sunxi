@@ -135,6 +135,18 @@ static int __init reserve_fb_param(char *s)
 early_param("sunxi_fb_mem_reserve", reserve_fb_param);
 #endif
 
+/*
+ * Physical addresses and sizes of two framebuffers.
+ */
+unsigned long fb0_start;
+unsigned long fb0_size;
+unsigned long fb1_start;
+unsigned long fb1_size;
+EXPORT_SYMBOL(fb0_start);
+EXPORT_SYMBOL(fb0_size);
+EXPORT_SYMBOL(fb1_start);
+EXPORT_SYMBOL(fb1_size);
+
 #if IS_ENABLED(CONFIG_SUNXI_G2D)
 /* The G2D block is used by:
  *
