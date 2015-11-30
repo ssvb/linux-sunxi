@@ -339,6 +339,27 @@ parser_disp_init_para(__disp_init_t *init_para)
 	}
 	init_para->scaler_mode[1] = value;
 
+#if defined(CONFIG_MALI) && defined(CONFIG_FB_SUNXI_UMP) && defined(CONFIG_CMA)
+	/*
+	 * It is best to ensure that the offscreen framebuffer area has
+	 * enough space for two more frames with 32-bit color depth. This
+	 * is needed for zero-copy buffer swaps in xf86-video-fbturbo DDX.
+	 */
+	for (i = 0; i < 2; i++) {
+		if (init_para->format[i] == DISP_FORMAT_ARGB8888 ||
+		    init_para->format[i] == DISP_FORMAT_ARGB888) {
+			init_para->buffer_num[i] =
+				max(init_para->buffer_num[i], 3U);
+		} else if (init_para->format[i] == DISP_FORMAT_RGB888) {
+			init_para->buffer_num[i] =
+				max(init_para->buffer_num[i], 4U);
+		} else {
+			init_para->buffer_num[i] =
+				max(init_para->buffer_num[i], 5U);
+		}
+	}
+#endif
+
 	__inf("====display init para begin====\n");
 	__inf("b_init:%d\n", init_para->b_init);
 	__inf("disp_mode:%d\n\n", init_para->disp_mode);
