@@ -790,6 +790,9 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 static int cedardev_open(struct inode *inode, struct file *filp)
 {
+#ifdef CONFIG_CMA
+	resource_size_t pa;
+#endif
 	struct cedar_dev *devp;
 	devp = container_of(inode->i_cdev, struct cedar_dev, cdev);
 	filp->private_data = devp;
@@ -797,6 +800,29 @@ static int cedardev_open(struct inode *inode, struct file *filp)
 		return -ERESTARTSYS;
 	}
 	/* init other resource here */
+#ifdef CONFIG_CMA
+	ve_size = max(ve_size, 80UL * SZ_1M);
+	ve_start_virt = dma_alloc_coherent(NULL, ve_size, &pa,
+							GFP_KERNEL | GFP_DMA);
+	if (!ve_start_virt) {
+		printk(KERN_NOTICE "cedar: failed to allocate memory buffer\n");
+		up(&devp->sem);
+		return -ENOMEM;
+	}
+	ve_start = pa;
+	if (ve_start + ve_size > SW_PA_SDRAM_START + SZ_256M) {
+		printk(KERN_NOTICE "cedar: buffer is above 256MB limit\n");
+		dma_free_coherent(NULL, ve_size, ve_start_virt, ve_start);
+		up(&devp->sem);
+		return -ENOMEM;
+	}
+#else
+	if (ve_size == 0) {
+		printk("[cedar dev]: not installed! ve_mem_reserve=0\n");
+		up(&devp->sem);
+		return -ENOMEM;
+	}
+#endif
 	devp->irq_flag = 0;
 	nonseekable_open(inode, filp);
 	return 0;
@@ -810,6 +836,9 @@ static int cedardev_release(struct inode *inode, struct file *filp)
 
 	/* release other resource here */
 	devp->irq_flag = 1;
+#ifdef CONFIG_CMA
+	dma_free_coherent(NULL, ve_size, ve_start_virt, ve_start);
+#endif
 	up(&devp->sem);
 	return 0;
 }
@@ -925,30 +954,6 @@ static int __init cedardev_init(void)
 	unsigned int val;
 	dev_t dev = 0;
 
-#ifdef CONFIG_CMA
-	/* If having CMA enabled, just rely on CMA for memory allocation */
-	resource_size_t pa;
-	ve_size = 80 * SZ_1M;
-	ve_start_virt = dma_alloc_coherent(NULL, ve_size, &pa,
-							GFP_KERNEL | GFP_DMA);
-	if (!ve_start_virt) {
-		printk(KERN_NOTICE "cedar: failed to allocate memory buffer\n");
-		return -ENODEV;
-	}
-	ve_start = pa;
-	if (ve_start + ve_size > SW_PA_SDRAM_START + SZ_256M) {
-		printk(KERN_NOTICE "cedar: buffer is above 256MB limit\n");
-		dma_free_coherent(NULL, ve_size, ve_start_virt, ve_start);
-		ve_start_virt = 0;
-		ve_size = 0;
-		return -ENODEV;
-	}
-#else
-	if (ve_size == 0) {
-		printk("[cedar dev]: not installed! ve_mem_reserve=0\n");
-		return -ENODEV;
-	}
-#endif
 
 	printk("[cedar dev]: install start!!!\n");
 	if((platform_device_register(&sw_device_cedar))<0)
@@ -1094,14 +1099,6 @@ static void __exit cedardev_exit(void)
 	if (cedar_devp) {
 		kfree(cedar_devp);
 	}
-
-#ifdef CONFIG_CMA
-	if (ve_start_virt) {
-		dma_free_coherent(NULL, ve_size, ve_start_virt, ve_start);
-		ve_start_virt = 0;
-		ve_size = 0;
-	}
-#endif
 }
 module_exit(cedardev_exit);
 
