@@ -797,8 +797,7 @@ static int cedardev_open(struct inode *inode, struct file *filp)
 		return -ERESTARTSYS;
 	}
 	/* init other resource here */
-    devp->irq_flag = 0;
-	up(&devp->sem);
+	devp->irq_flag = 0;
 	nonseekable_open(inode, filp);
 	return 0;
 }
@@ -808,11 +807,9 @@ static int cedardev_release(struct inode *inode, struct file *filp)
 	struct cedar_dev *devp;
 
 	devp = filp->private_data;
-	if (down_interruptible(&devp->sem)) {
-		return -ERESTARTSYS;
-	}
+
 	/* release other resource here */
-    devp->irq_flag = 1;
+	devp->irq_flag = 1;
 	up(&devp->sem);
 	return 0;
 }
