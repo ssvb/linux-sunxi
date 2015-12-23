@@ -44,6 +44,9 @@ static void __init sun6i_smp_prepare_cpus(unsigned int max_cpus)
 	struct device_node *node;
 
 	node = of_find_compatible_node(NULL, NULL, "allwinner,sun6i-a31-prcm");
+	if (!node)
+		node = of_find_compatible_node(NULL, NULL,
+					       "allwinner,sun8i-h3-prcm");
 	if (!node) {
 		pr_err("Missing A31 PRCM node in the device tree\n");
 		return;
@@ -57,6 +60,9 @@ static void __init sun6i_smp_prepare_cpus(unsigned int max_cpus)
 
 	node = of_find_compatible_node(NULL, NULL,
 				       "allwinner,sun6i-a31-cpuconfig");
+	if (!node)
+		node = of_find_compatible_node(NULL, NULL,
+					       "allwinner,sun8i-h3-cpuconfig");
 	if (!node) {
 		pr_err("Missing A31 CPU config node in the device tree\n");
 		return;
