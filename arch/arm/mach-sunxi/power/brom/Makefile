@@ -22,21 +22,21 @@ resumes-y :=   resumes.o        \
 
 resumes-y := $(addprefix $(obj)/,$(resumes-y))
 
-$(obj)/resumes.code: $(obj)/resumes.bin
-	$(Q)$(obj)/gen_check_code $(obj)/resumes.bin $(obj)/resumes.code
+$(obj)/resumes.code: $(src)/gen_check_code $(obj)/resumes.bin
+	$(Q)$< $(obj)/resumes.bin $(obj)/resumes.code
 
 $(obj)/resumes.bin: $(obj)/resumes.elf FORCE
 	$(Q)$(CROSS_COMPILE)objcopy -O binary $(obj)/resumes.elf $(obj)/resumes.bin
 
 ifneq ($(strip $(CONFIG_ARCH_SUN9I)),)
-$(obj)/resumes.elf: $(obj)/sun9i_brom_scatter.scat $(resumes-y)
-	$(Q)$(CROSS_COMPILE)ld -T $(obj)/sun9i_brom_scatter.scat  -EL  $(resumes-y) -o $(obj)/resumes.elf  -Map $(obj)/resumes.map
+$(obj)/resumes.elf: $(src)/sun9i_brom_scatter.scat $(resumes-y)
+	$(Q)$(CROSS_COMPILE)ld -T $<  -EL  $(resumes-y) -o $(obj)/resumes.elf  -Map $(obj)/resumes.map
 	$(Q)$(CROSS_COMPILE)objdump -D $(obj)/resumes.elf > $(obj)/resumes.lst
 endif
 
 ifneq ($(strip $(CONFIG_ARCH_SUN8I)),)
-$(obj)/resumes.elf: $(obj)/sun8i_brom_scatter.scat $(resumes-y)
-	$(Q)$(CROSS_COMPILE)ld -T $(obj)/sun8i_brom_scatter.scat  -EL  $(resumes-y) -o $(obj)/resumes.elf  -Map $(obj)/resumes.map
+$(obj)/resumes.elf: $(src)/sun8i_brom_scatter.scat $(resumes-y)
+	$(Q)$(CROSS_COMPILE)ld -T $<  -EL  $(resumes-y) -o $(obj)/resumes.elf  -Map $(obj)/resumes.map
 	$(Q)$(CROSS_COMPILE)objdump -D $(obj)/resumes.elf > $(obj)/resumes.lst
 endif
 
